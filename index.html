@@ -148,9 +148,6 @@ scene.add(gunes, gunes.target);
 for (const [x, y] of [[2.2, 3.1], [3.8, 3.1], [2.2, 1.7], [3.8, 1.7], [1.2, 5.0], [3.5, 5.25], [5.25, 5.05]]) {
   const p = new THREE.PointLight(0xffe9cf, 4.5, 6, 2); p.position.copy(B(x, y, 3.0)); scene.add(p);
 }
-// logonun alt LED'i
-const logoIsik = new THREE.SpotLight(0xfff4ea, 60, 4, Math.PI / 3, 0.8, 1.5);
-logoIsik.position.copy(B(3, -0.95, 4.3)); logoIsik.target.position.copy(B(3, -0.4, 4.85)); scene.add(logoIsik, logoIsik.target);
 
 const camera = new THREE.PerspectiveCamera(55, 1, 0.05, 200);
 const orbit = new OrbitControls(camera, canvas);
@@ -251,7 +248,13 @@ new GLTFLoader().setDRACOLoader(draco).load("stand.json", (gltf) => {
     if (!o.isMesh) return;
     o.castShadow = true; o.receiveShadow = true;
     for (const m of [].concat(o.material)) {
-      if (m.name && m.name.startsWith("Cizim")) { m.transparent = false; m.alphaTest = 0.4; m.depthWrite = true; }
+      // duvar çizimleri: alfa testi ince çizgileri uzaktan siliyordu; yarı saydam karıştırma ile çiz, duvarla çakışmasın
+      if (m.name && m.name.startsWith("Cizim")) {
+        Object.assign(m, { transparent: true, alphaTest: 0, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
+        o.castShadow = false; o.renderOrder = 1;
+      }
+      // logo: spot yerine kendi turkuazından hafif ışıma, her yeri eşit görünsün
+      if (m.name === "Maarif_Turkuaz") { m.emissive = m.color.clone(); m.emissiveIntensity = 0.18; m.roughness = 0.6; }
       if (m.map) m.map.anisotropy = renderer.capabilities.getMaxAnisotropy();
     }
   });
