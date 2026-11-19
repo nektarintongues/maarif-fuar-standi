@@ -105,6 +105,7 @@ button[aria-pressed="true"] { background: var(--turkuaz-koyu); border-color: var
     <button data-nokta="vip">VIP</button>
     <button data-nokta="karsilama">Karşılama</button>
     <button data-nokta="logo">Logo</button>
+    <button data-nokta="arka">Arka</button>
   </div>
 </div>
 
@@ -173,6 +174,7 @@ const NOKTA = {
   vip: [B(2.2, 4.35, 1.6), B(1.2, 5.9, 1.55)],
   karsilama: [B(5.75, 2.7, 1.6), B(5.2, 4.9, 1.1)],
   logo: [B(3.0, -5.5, 3.2), B(3.0, -0.4, 4.8)],
+  arka: [B(3.6, 13.5, 4.6), B(3.0, 1.5, 3.4)],
 };
 
 // --- yürüme modu: sürükleyerek bak, tuş / joystick ile yürü ---
@@ -187,7 +189,7 @@ function bakisAyarla(goz, hedef) {
 function git(ad) {
   let [goz, hedef] = NOKTA[ad];
   // dikey ekranda genel/logo görünümünde biraz geri çekil ki stand sığsın
-  if (camera.aspect < 1 && (ad === "genel" || ad === "logo")) goz = hedef.clone().add(goz.clone().sub(hedef).multiplyScalar(1.2));
+  if (camera.aspect < 1 && (ad === "genel" || ad === "logo" || ad === "arka")) goz = hedef.clone().add(goz.clone().sub(hedef).multiplyScalar(1.2));
   if (mod === "bak") { camera.position.copy(goz); orbit.target.copy(hedef); orbit.update(); }
   else { bakisAyarla(new THREE.Vector3(goz.x, 1.6, goz.z), new THREE.Vector3(hedef.x, 1.5, hedef.z)); }
 }
@@ -274,6 +276,7 @@ new GLTFLoader().setDRACOLoader(draco).load("stand.json?v=4", (gltf) => {  // ?v
   scene.add(gltf.scene);
   LOGO.yatay = ["Logo_Amblem", "Logo_Yazi"].map((n) => gltf.scene.getObjectByName(n)).filter(Boolean);
   LOGO.dikey = ["Logo_Dikey"].map((n) => gltf.scene.getObjectByName(n)).filter(Boolean);
+  arkaYuzKur("yatay"); arkaYuzKur("dikey");
   logoSec(location.hash === "#dikey" ? "dikey" : "yatay");
   document.getElementById("logo-sec").hidden = false;
   durum.hidden = true;
@@ -287,12 +290,35 @@ new GLTFLoader().setDRACOLoader(draco).load("stand.json?v=4", (gltf) => {  // ?v
 });
 
 // ---------- logo seçeneği: 1 yatay / 2 dikey ----------
-const LOGO = { yatay: [], dikey: [], secili: "yatay" };
+const LOGO = { yatay: [], dikey: [], arka: { yatay: [], dikey: [] }, merkez: {}, secili: "yatay" };
 const logoKutu = document.getElementById("logo-sec");
+
+// Çift yönlü harf: her logonun, kendi orta ekseninden aynalanmış bir kopyası arka yüz olur.
+// Ölçü, font ve konum aynı; kamera logonun arkasına geçince aynalı kopya görünür, yazı düz okunur.
+function arkaYuzKur(ad) {
+  const liste = LOGO[ad]; if (!liste.length) return;
+  const kutu = new THREE.Box3(); for (const o of liste) { o.updateWorldMatrix(true, false); kutu.expandByObject(o); }
+  const c = kutu.getCenter(new THREE.Vector3()); LOGO.merkez[ad] = c;
+  const ayna = new THREE.Matrix4().makeTranslation(c.x, 0, 0)
+    .multiply(new THREE.Matrix4().makeScale(-1, 1, 1)).multiply(new THREE.Matrix4().makeTranslation(-c.x, 0, 0));
+  for (const o of liste) {
+    const k = o.clone(); k.matrixAutoUpdate = false;
+    k.matrix.copy(ayna).multiply(o.matrixWorld); k.matrixWorldNeedsUpdate = true;
+    scene.add(k); LOGO.arka[ad].push(k);
+  }
+}
+// kamera logonun hangi tarafında? (ön yüz +z yönüne bakar)
+function logoGorunurluk() {
+  for (const ad of ["yatay", "dikey"]) {
+    const c = LOGO.merkez[ad]; if (!c) continue;
+    const secili = ad === LOGO.secili, onde = camera.position.z >= c.z;
+    for (const o of LOGO[ad]) o.visible = secili && onde;
+    for (const o of LOGO.arka[ad]) o.visible = secili && !onde;
+  }
+}
 function logoSec(ad) {
   LOGO.secili = ad;
-  for (const o of LOGO.yatay) o.visible = ad === "yatay";
-  for (const o of LOGO.dikey) o.visible = ad === "dikey";
+  logoGorunurluk();
   for (const b of logoKutu.querySelectorAll("button")) b.setAttribute("aria-pressed", b.dataset.logo === ad);
   try { history.replaceState(null, "", ad === "dikey" ? "#dikey" : location.pathname + location.search); } catch {}
 }
@@ -307,7 +333,7 @@ canvas.addEventListener("pointerup", (e) => {
   if (!basla || Math.hypot(e.clientX - basla.x, e.clientY - basla.y) > 6) return;
   fare.set((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1);
   ray.setFromCamera(fare, camera);
-  const hedef = LOGO[LOGO.secili];
+  const hedef = [...LOGO[LOGO.secili], ...LOGO.arka[LOGO.secili]].filter((o) => o.visible);
   if (hedef.length && ray.intersectObjects(hedef, true).length) logoSec(LOGO.secili === "yatay" ? "dikey" : "yatay");
 });
 canvas.style.cursor = "default";
@@ -323,7 +349,7 @@ function logoDugmesiniTasi() {
   logoKutu.style.visibility = gorunur ? "visible" : "hidden";
   const x = THREE.MathUtils.clamp((nokta.x + 1) / 2 * innerWidth, 110, innerWidth - 110);
   const y = THREE.MathUtils.clamp((1 - nokta.y) / 2 * innerHeight, 120, innerHeight - 120);
-  logoKutu.style.transform = `translate(${x}px, ${y}px) translate(-50%, -100%)`;
+  logoKutu.style.transform = `translate(${Math.round(x)}px, ${Math.round(y)}px) translate(-50%, -100%)`;
 }
 
 const saat = new THREE.Clock();
@@ -331,6 +357,7 @@ git("genel");
 renderer.setAnimationLoop(() => {
   const dt = Math.min(saat.getDelta(), 0.05);
   if (mod === "gez") yuru(dt); else orbit.update();
+  logoGorunurluk();
   renderer.render(scene, camera);
   logoDugmesiniTasi();
 });
