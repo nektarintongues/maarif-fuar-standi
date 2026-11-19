@@ -61,6 +61,16 @@ button[aria-pressed="true"] { background: var(--turkuaz-koyu); border-color: var
 }
 #joy i { position: absolute; left: 50%; top: 50%; width: 48px; height: 48px; margin: -24px 0 0 -24px; border-radius: 50%; background: var(--turkuaz); opacity: 0.9; }
 
+/* dokunulan nesnenin ölçü kartı (alt menünün üstünde) */
+#olcu { pointer-events: auto; width: min(380px, 100%); padding: 10px 12px 8px; }
+.olcu-ust { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.olcu-ust b { font: 600 15px/1.25 var(--baslik); min-width: 0; }
+.olcu-ust button { padding: 6px 9px; }
+#olcu dl { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; margin: 8px 0 4px; }
+#olcu dt { font-size: 10.5px; color: var(--soluk); letter-spacing: 0.03em; }
+#olcu dd { margin: 2px 0 0; font: 600 14px/1.2 var(--baslik); color: var(--turkuaz); font-variant-numeric: tabular-nums; }
+#olcu p { margin: 0; font-size: 11px; color: var(--soluk); }
+@media (max-width: 420px) { #olcu dl { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 /* logonun üstünde duran seçenek düğmesi (3D konumdan ekrana izdüşürülür) */
 #logo-sec {
   position: fixed; left: 0; top: 0; transform: translate(-50%, -100%); display: flex; align-items: center; gap: 4px;
@@ -87,8 +97,8 @@ button[aria-pressed="true"] { background: var(--turkuaz-koyu); border-color: var
   <div class="kart baslik">
     <h1>Türkiye <span>Maarif</span> Vakfı · Fuar Standı</h1>
     <p id="ipucu">
-      <span class="masa" data-mod="bak">Sürükle: döndür · Tekerlek: yakınlaş · Sağ tık: kaydır</span>
-      <span class="dokun" data-mod="bak">Tek parmak: döndür · İki parmak: yakınlaş</span>
+      <span class="masa" data-mod="bak">Sürükle: döndür · Tekerlek: yakınlaş · Tıkla: ölçü</span>
+      <span class="dokun" data-mod="bak">Tek parmak: döndür · İki parmak: yakınlaş · Dokun: ölçü</span>
       <span class="masa" data-mod="gez" hidden><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> yürü · Sürükle: etrafa bak · <kbd>Shift</kbd> hızlı</span>
       <span class="dokun" data-mod="gez" hidden>Sol daire: yürü · Ekranı sürükle: etrafa bak</span>
     </p>
@@ -96,6 +106,16 @@ button[aria-pressed="true"] { background: var(--turkuaz-koyu); border-color: var
 </div>
 
 <div class="alt">
+  <div id="olcu" class="kart" role="status" aria-live="polite" hidden>
+    <div class="olcu-ust"><b id="olcu-ad"></b><button id="olcu-kapat" aria-label="Kapat">✕</button></div>
+    <dl>
+      <div><dt>En</dt><dd id="olcu-en"></dd></div>
+      <div><dt>Derinlik</dt><dd id="olcu-der"></dd></div>
+      <div><dt>Yükseklik</dt><dd id="olcu-yuk"></dd></div>
+      <div><dt>Yerden üst kenar</dt><dd id="olcu-ust"></dd></div>
+    </dl>
+    <p>Modelden ölçülen tahmini değer</p>
+  </div>
   <div class="kart sira" role="toolbar" aria-label="Görünüm">
     <button id="mod-bak" aria-pressed="true">Dışarıdan bak</button>
     <button id="mod-gez" aria-pressed="false">İçinde gez</button>
@@ -259,7 +279,7 @@ addEventListener("resize", boyut); boyut();
 const durum = document.getElementById("durum"), dYazi = document.getElementById("durum-yazi"), dBar = document.getElementById("durum-bar");
 // çözücü sayfanın yanında (CDN'den indirme engelli)
 const draco = new DRACOLoader().setDecoderPath("draco/").setDecoderConfig({ type: "wasm" });
-new GLTFLoader().setDRACOLoader(draco).load("stand.json?v=6", (gltf) => {  // ?v: güncellemede tarayıcı önbelleği eski modeli göstermesin
+new GLTFLoader().setDRACOLoader(draco).load("stand.json?v=7", (gltf) => {  // ?v: güncellemede tarayıcı önbelleği eski modeli göstermesin
   gltf.scene.traverse((o) => {
     if (!o.isMesh) return;
     o.castShadow = true; o.receiveShadow = true;
@@ -309,18 +329,94 @@ function logoSec(ad) {
 for (const b of logoKutu.querySelectorAll("button")) b.onclick = () => logoSec(b.dataset.logo);
 addEventListener("hashchange", () => logoSec(hashLogo()));
 
-// logoya tıklayınca/dokununca diğer seçeneğe geç (sürükleme sayılmaz)
+// ---------- dokun / tıkla: nesnenin adı ve tahmini ölçüsü ----------
+// glTF yükleyici adlardaki noktayı siler: "Duvar_Sinif_Sag.001" -> "Duvar_Sinif_Sag001"
+const AD = [
+  [/^(Logo_Yatay_Pano|Logo_(Amblem|Yazi)(_Arka)?|Logo1_|Logo_Dikey)/, "logo"],
+  [/^VIP_Duvar_Logo/, "VIP duvar logosu"],
+  [/^Zemin$/, "Zemin"],
+  [/^Duvar_Sinif_Sag001/, "Ön kiriş (logo taşıyıcı)"],
+  [/^Duvar_Arka_VIP/, "Arka duvar · VIP"], [/^Duvar_Arka_Mutfak/, "Arka duvar · Mutfak"], [/^Duvar_Arka_Karsilama/, "Arka duvar · Karşılama"],
+  [/^Duvar_Mutfak/, "Mutfak bölme duvarı"], [/^Duvar_Sinif_Arka/, "Sınıf arka duvarı"], [/^Duvar_Sinif_(Sol|Sag)$/, "Sınıf yan duvarı"],
+  [/^Cube_Klon_(2|6)001/, "Ön dikme"], [/^Cube/, "Tavan kirişi"],
+  [/^Tahta_/, "Yazı tahtası"], [/^Kitaplik_(Sol|Sag)_Kitaplar/, "^"], [/^Kitaplik_Sol$/, "Alçak kitaplık"], [/^Kitaplik_Sag$/, "Uzun kitaplık"],
+  [/^Sira_Brosur/, "Broşür"], [/^Sira_\d/, "Öğrenci sırası"], [/^Sandalye_/, "Sandalye"],
+  [/^(VIP|Karsilama)_Bitki/, "Saksı bitki"], [/^VIP_Lambader/, "Lambader"], [/^Mutfak_Kahve/, "Kahve makinesi"], [/^Mutfak_/, "Mutfak tezgahı"],
+  [/^Zemin_Bant/, "Zemin bandı"],
+  [/^VIP_Berjer/, "Berjer"], [/^VIP_Sehpa/, "Sehpa"], [/^VIP_Hali/, "Halı"],
+  [/^Karsilama_Banko$/, "Karşılama bankosu"], [/^Mutfak_Tezgah/, "Mutfak tezgahı"], [/^Mutfak_Cihaz$/, "Mutfak cihazı"],
+  [/^Dekor_Saat/, "Duvar saati"], [/^Dekor_Kure/, "Dünya küresi"], [/^Dekor_Kalemlik/, "Kalemlik"], [/^Dekor_(Papatya|Pembe)/, "Saksı çiçek"],
+  [/^Cizim_Pencere/, "Pencere çizimi"], [/^Cizim_Petek/, "Kalorifer çizimi"], [/^Cizim_Harita/, "Dünya haritası çizimi"], [/^Cizim_Kitaplik/, "Kitaplık çizimi"],
+  [/^(Spot_|Ray_Spot)/, "Spot ışık"],
+];
+const LOGO_ETIKET = { yatay: "Logo · 1 Yatay", dikey: "Logo · 2 Dikey", pano: "Logo · 3 Pano" };
+function hedefBul(o) {
+  // çok malzemeli nesnede tıklanan parça, nesnenin adını taşıyan grubun çocuğudur (adı "Cube006" gibi): gruptan başla
+  if (o.parent && o.parent.type === "Group" && AD.some(([re]) => re.test(o.parent.name))) o = o.parent;
+  for (let n = o; n && n !== scene; n = n.parent)
+    for (const [re, ad] of AD) if (re.test(n.name)) return ad === "^" ? hedefBul(n.parent) : { obj: n, ad };
+  return null;
+}
+const gorunurMu = (o) => { for (let n = o; n; n = n.parent) if (!n.visible) return false; return true; };
+const cm = (v) => (v < 1 ? `${Math.round(v * 100)} cm` : `${v.toFixed(2).replace(".", ",")} m`);
+
+const olcuKart = document.getElementById("olcu");
+let vurgu = null;
+const cizgiMat = new THREE.LineBasicMaterial({ color: 0x00adba, depthTest: false, transparent: true });
+function vurguKaldir() { if (vurgu) { vurgu.parent.remove(vurgu); vurgu.geometry.dispose(); vurgu = null; } }
+function olcuGoster(ad, en, der, yuk, ust) {
+  document.getElementById("olcu-ad").textContent = ad;
+  document.getElementById("olcu-en").textContent = cm(en);
+  document.getElementById("olcu-der").textContent = cm(der);
+  document.getElementById("olcu-yuk").textContent = cm(yuk);
+  document.getElementById("olcu-ust").textContent = cm(Math.max(0, ust));
+  olcuKart.hidden = false;
+}
+function olcuKapat() { olcuKart.hidden = true; vurguKaldir(); }
+document.getElementById("olcu-kapat").onclick = olcuKapat;
+
+function sec(hit) {
+  vurguKaldir();
+  const h = hedefBul(hit.object);
+  if (!h) { olcuKapat(); return; }
+  if (h.ad === "logo") {  // logo: seçili seçeneğin tüm parçaları birlikte
+    const kutu = new THREE.Box3(); for (const o of LOGO[LOGO.secili]) kutu.expandByObject(o);
+    const s = kutu.getSize(new THREE.Vector3());
+    const bh = new THREE.Box3Helper(kutu, 0x00adba); bh.material = cizgiMat; scene.add(bh); vurgu = bh;
+    olcuGoster(LOGO_ETIKET[LOGO.secili], s.x, s.z, s.y, kutu.max.y);
+  } else {
+    // nesnenin kendi ekseninde ölç (eğik kirişlerde şişkin kutu çıkmasın), eksenleri dünya yönüne göre adlandır
+    const T = h.obj; T.updateWorldMatrix(true, true);
+    const inv = T.matrixWorld.clone().invert(), kutu = new THREE.Box3(), m4 = new THREE.Matrix4();
+    T.traverse((m) => {
+      if (!m.isMesh) return;
+      if (!m.geometry.boundingBox) m.geometry.computeBoundingBox();
+      kutu.union(m.geometry.boundingBox.clone().applyMatrix4(m4.multiplyMatrices(inv, m.matrixWorld)));
+    });
+    const yer = kutu.getSize(new THREE.Vector3()), sc = T.getWorldScale(new THREE.Vector3()), q = T.getWorldQuaternion(new THREE.Quaternion());
+    const L = [yer.x * Math.abs(sc.x), yer.y * Math.abs(sc.y), yer.z * Math.abs(sc.z)];
+    const yon = [new THREE.Vector3(1, 0, 0), new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 0, 1)].map((v) => v.applyQuaternion(q));
+    const yi = [0, 1, 2].reduce((a, i) => (Math.abs(yon[i].y) > Math.abs(yon[a].y) ? i : a), 0);
+    const kalan = [0, 1, 2].filter((i) => i !== yi);
+    const ei = Math.abs(yon[kalan[0]].x) >= Math.abs(yon[kalan[1]].x) ? kalan[0] : kalan[1], di = kalan.find((i) => i !== ei);
+    const kenar = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(yer.x, yer.y, yer.z)), cizgiMat);
+    kenar.position.copy(kutu.getCenter(new THREE.Vector3())); kenar.renderOrder = 10; kenar.raycast = () => {};
+    T.add(kenar); vurgu = kenar;
+    olcuGoster(h.ad, L[ei], L[di], L[yi], new THREE.Box3().setFromObject(T).max.y);
+  }
+}
+
 const ray = new THREE.Raycaster(), fare = new THREE.Vector2();
 let basla = null;
 canvas.addEventListener("pointerdown", (e) => { basla = { x: e.clientX, y: e.clientY }; });
 canvas.addEventListener("pointerup", (e) => {
-  if (!basla || Math.hypot(e.clientX - basla.x, e.clientY - basla.y) > 6) return;
-  fare.set((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1);
+  if (!basla || Math.hypot(e.clientX - basla.x, e.clientY - basla.y) > 6) return;  // sürükleme sayılmaz
+  const r = canvas.getBoundingClientRect();
+  fare.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
   ray.setFromCamera(fare, camera);
-  const hedef = LOGO[LOGO.secili].filter((o) => o.visible);
-  if (hedef.length && ray.intersectObjects(hedef, true).length) logoSec(SIRA[(SIRA.indexOf(LOGO.secili) + 1) % SIRA.length]);
+  const hit = ray.intersectObjects(scene.children, true).find((h) => h.object.isMesh && gorunurMu(h.object));
+  if (hit) sec(hit); else olcuKapat();
 });
-canvas.style.cursor = "default";
 
 // düğmeyi her karede görünen logonun üst ortasına taşı
 const kutu3 = new THREE.Box3(), nokta = new THREE.Vector3();
@@ -331,7 +427,8 @@ function logoDugmesiniTasi() {
   nokta.set((kutu3.min.x + kutu3.max.x) / 2, kutu3.max.y + 0.12, (kutu3.min.z + kutu3.max.z) / 2).project(camera);
   const gorunur = nokta.z < 1 && Math.abs(nokta.x) < 1.1 && Math.abs(nokta.y) < 1.1;
   logoKutu.style.visibility = gorunur ? "visible" : "hidden";
-  const x = THREE.MathUtils.clamp((nokta.x + 1) / 2 * innerWidth, 110, innerWidth - 110);
+  const yari = logoKutu.offsetWidth / 2 + 12;  // ekran kenarından taşmasın
+  const x = THREE.MathUtils.clamp((nokta.x + 1) / 2 * innerWidth, yari, Math.max(yari, innerWidth - yari));
   const y = THREE.MathUtils.clamp((1 - nokta.y) / 2 * innerHeight, 120, innerHeight - 120);
   logoKutu.style.transform = `translate(${Math.round(x)}px, ${Math.round(y)}px) translate(-50%, -100%)`;
 }
