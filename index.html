@@ -61,6 +61,13 @@ button[aria-pressed="true"] { background: var(--turkuaz-koyu); border-color: var
 }
 #joy i { position: absolute; left: 50%; top: 50%; width: 48px; height: 48px; margin: -24px 0 0 -24px; border-radius: 50%; background: var(--turkuaz); opacity: 0.9; }
 
+/* logonun üstünde duran seçenek düğmesi (3D konumdan ekrana izdüşürülür) */
+#logo-sec {
+  position: fixed; left: 0; top: 0; transform: translate(-50%, -100%); display: flex; align-items: center; gap: 4px;
+  padding: 4px; white-space: nowrap; will-change: transform;
+}
+#logo-sec span { font: 500 11px/1 var(--metin); color: var(--soluk); padding: 0 6px 0 8px; letter-spacing: 0.04em; text-transform: uppercase; }
+#logo-sec button { padding: 7px 10px; font-size: 12.5px; }
 #durum { position: fixed; inset: 0; display: grid; place-items: center; pointer-events: none; }
 #durum .kart { padding: 14px 18px; min-width: 220px; text-align: center; }
 #durum .bar { height: 4px; border-radius: 2px; background: var(--panel-cizgi); margin-top: 10px; overflow: hidden; }
@@ -102,6 +109,12 @@ button[aria-pressed="true"] { background: var(--turkuaz-koyu); border-color: var
 </div>
 
 <div id="joy" hidden aria-hidden="true"><i></i></div>
+
+<div id="logo-sec" class="kart" role="group" aria-label="Logo seçeneği" hidden>
+  <span>Logo</span>
+  <button data-logo="yatay" aria-pressed="true">1 · Yatay</button>
+  <button data-logo="dikey" aria-pressed="false">2 · Dikey</button>
+</div>
 
 <div id="durum"><div class="kart"><div id="durum-yazi">Stand yükleniyor…</div><div class="bar"><b id="durum-bar"></b></div></div></div>
 
@@ -243,7 +256,7 @@ addEventListener("resize", boyut); boyut();
 const durum = document.getElementById("durum"), dYazi = document.getElementById("durum-yazi"), dBar = document.getElementById("durum-bar");
 // çözücü sayfanın yanında (CDN'den indirme engelli)
 const draco = new DRACOLoader().setDecoderPath("draco/").setDecoderConfig({ type: "wasm" });
-new GLTFLoader().setDRACOLoader(draco).load("stand.json?v=3", (gltf) => {  // ?v: güncellemede tarayıcı önbelleği eski modeli göstermesin
+new GLTFLoader().setDRACOLoader(draco).load("stand.json?v=4", (gltf) => {  // ?v: güncellemede tarayıcı önbelleği eski modeli göstermesin
   gltf.scene.traverse((o) => {
     if (!o.isMesh) return;
     o.castShadow = true; o.receiveShadow = true;
@@ -259,6 +272,10 @@ new GLTFLoader().setDRACOLoader(draco).load("stand.json?v=3", (gltf) => {  // ?v
     }
   });
   scene.add(gltf.scene);
+  LOGO.yatay = ["Logo_Amblem", "Logo_Yazi"].map((n) => gltf.scene.getObjectByName(n)).filter(Boolean);
+  LOGO.dikey = ["Logo_Dikey"].map((n) => gltf.scene.getObjectByName(n)).filter(Boolean);
+  logoSec(location.hash === "#dikey" ? "dikey" : "yatay");
+  document.getElementById("logo-sec").hidden = false;
   durum.hidden = true;
   git("genel");
 }, (e) => {
@@ -269,12 +286,53 @@ new GLTFLoader().setDRACOLoader(draco).load("stand.json?v=3", (gltf) => {  // ?v
   console.error(err);
 });
 
+// ---------- logo seçeneği: 1 yatay / 2 dikey ----------
+const LOGO = { yatay: [], dikey: [], secili: "yatay" };
+const logoKutu = document.getElementById("logo-sec");
+function logoSec(ad) {
+  LOGO.secili = ad;
+  for (const o of LOGO.yatay) o.visible = ad === "yatay";
+  for (const o of LOGO.dikey) o.visible = ad === "dikey";
+  for (const b of logoKutu.querySelectorAll("button")) b.setAttribute("aria-pressed", b.dataset.logo === ad);
+  try { history.replaceState(null, "", ad === "dikey" ? "#dikey" : location.pathname + location.search); } catch {}
+}
+for (const b of logoKutu.querySelectorAll("button")) b.onclick = () => logoSec(b.dataset.logo);
+addEventListener("hashchange", () => logoSec(location.hash === "#dikey" ? "dikey" : "yatay"));
+
+// logoya tıklayınca/dokununca diğer seçeneğe geç (sürükleme sayılmaz)
+const ray = new THREE.Raycaster(), fare = new THREE.Vector2();
+let basla = null;
+canvas.addEventListener("pointerdown", (e) => { basla = { x: e.clientX, y: e.clientY }; });
+canvas.addEventListener("pointerup", (e) => {
+  if (!basla || Math.hypot(e.clientX - basla.x, e.clientY - basla.y) > 6) return;
+  fare.set((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1);
+  ray.setFromCamera(fare, camera);
+  const hedef = LOGO[LOGO.secili];
+  if (hedef.length && ray.intersectObjects(hedef, true).length) logoSec(LOGO.secili === "yatay" ? "dikey" : "yatay");
+});
+canvas.style.cursor = "default";
+
+// düğmeyi her karede görünen logonun üst ortasına taşı
+const kutu3 = new THREE.Box3(), nokta = new THREE.Vector3();
+function logoDugmesiniTasi() {
+  const g = LOGO[LOGO.secili];
+  if (!g.length || mod === "gez") { logoKutu.style.visibility = "hidden"; return; }
+  kutu3.makeEmpty(); for (const o of g) kutu3.expandByObject(o);
+  nokta.set((kutu3.min.x + kutu3.max.x) / 2, kutu3.max.y + 0.12, (kutu3.min.z + kutu3.max.z) / 2).project(camera);
+  const gorunur = nokta.z < 1 && Math.abs(nokta.x) < 1.1 && Math.abs(nokta.y) < 1.1;
+  logoKutu.style.visibility = gorunur ? "visible" : "hidden";
+  const x = THREE.MathUtils.clamp((nokta.x + 1) / 2 * innerWidth, 110, innerWidth - 110);
+  const y = THREE.MathUtils.clamp((1 - nokta.y) / 2 * innerHeight, 120, innerHeight - 120);
+  logoKutu.style.transform = `translate(${x}px, ${y}px) translate(-50%, -100%)`;
+}
+
 const saat = new THREE.Clock();
 git("genel");
 renderer.setAnimationLoop(() => {
   const dt = Math.min(saat.getDelta(), 0.05);
   if (mod === "gez") yuru(dt); else orbit.update();
   renderer.render(scene, camera);
+  logoDugmesiniTasi();
 });
 </script>
 
