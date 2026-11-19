@@ -259,7 +259,8 @@ new GLTFLoader().setDRACOLoader(draco).load("stand.json", (gltf) => {
   durum.hidden = true;
   git("genel");
 }, (e) => {
-  if (e.lengthComputable) { const p = Math.round((e.loaded / e.total) * 100); dBar.style.width = p + "%"; dYazi.textContent = `Stand yükleniyor… %${p}`; }
+  // sunucu dosyayı sıkıştırınca loaded > total olabiliyor: %99'da tut
+  if (e.lengthComputable) { const p = Math.min(99, Math.round((e.loaded / e.total) * 100)); dBar.style.width = p + "%"; dYazi.textContent = `Stand yükleniyor… %${p}`; }
 }, (err) => {
   dYazi.textContent = "Model yüklenemedi. Sayfayı yenileyip tekrar deneyin.";
   console.error(err);
