@@ -133,9 +133,9 @@ button[aria-pressed="true"] { background: var(--turkuaz-koyu); border-color: var
 
 <div id="logo-sec" class="kart" role="group" aria-label="Logo seçeneği" hidden>
   <span>Logo</span>
-  <button data-logo="yatay" aria-pressed="true">1 · Yatay</button>
-  <button data-logo="dikey" aria-pressed="false">2 · Dikey</button>
-  <button data-logo="pano" aria-pressed="false">3 · Pano</button>
+  <button data-logo="dikey" aria-pressed="true">1 · Dikey</button>
+  <button data-logo="dikey2" aria-pressed="false">2 · Dikey v2</button>
+  <button data-logo="yatay" aria-pressed="false">3 · Yatay</button>
 </div>
 
 <div id="durum"><div class="kart"><div id="durum-yazi">Stand yükleniyor…</div><div class="bar"><b id="durum-bar"></b></div></div></div>
@@ -194,7 +194,7 @@ const NOKTA = {
   sinif: [B(3.0, 0.4, 1.6), B(3.0, 3.9, 1.5)],
   vip: [B(2.2, 4.35, 1.6), B(1.2, 5.9, 1.55)],
   karsilama: [B(5.75, 2.7, 1.6), B(5.2, 4.9, 1.1)],
-  logo: [B(3.0, -5.5, 3.2), B(3.0, -0.4, 4.8)],
+  logo: [B(3.0, -5.5, 2.4), B(3.0, 0.0, 3.3)],
   arka: [B(3.6, 13.5, 4.6), B(3.0, 1.5, 3.4)],
 };
 
@@ -279,7 +279,7 @@ addEventListener("resize", boyut); boyut();
 const durum = document.getElementById("durum"), dYazi = document.getElementById("durum-yazi"), dBar = document.getElementById("durum-bar");
 // çözücü sayfanın yanında (CDN'den indirme engelli)
 const draco = new DRACOLoader().setDecoderPath("draco/").setDecoderConfig({ type: "wasm" });
-new GLTFLoader().setDRACOLoader(draco).load("stand.json?v=7", (gltf) => {  // ?v: güncellemede tarayıcı önbelleği eski modeli göstermesin
+new GLTFLoader().setDRACOLoader(draco).load("stand.json?v=8", (gltf) => {  // ?v: güncellemede tarayıcı önbelleği eski modeli göstermesin
   gltf.scene.traverse((o) => {
     if (!o.isMesh) return;
     o.castShadow = true; o.receiveShadow = true;
@@ -291,14 +291,17 @@ new GLTFLoader().setDRACOLoader(draco).load("stand.json?v=7", (gltf) => {  // ?v
       }
       // logo: spot yerine kendi turkuazından hafif ışıma, her yeri eşit görünsün
       if (m.name === "Maarif_Turkuaz") { m.emissive = m.color.clone(); m.emissiveIntensity = 0.18; m.roughness = 0.6; }
+      if (m.name === "Seffaf_Pleksi") { Object.assign(m, { transparent: true, opacity: 0.18, depthWrite: false, roughness: 0.05 }); o.castShadow = false; }
       if (m.map) m.map.anisotropy = renderer.capabilities.getMaxAnisotropy();
     }
   });
   scene.add(gltf.scene);
   const bul = (adlar) => adlar.map((n) => gltf.scene.getObjectByName(n)).filter(Boolean);
-  LOGO.yatay = bul(["Logo1_Amblem", "Logo1_Yazi"]);                       // 1: tek parça yatay
-  LOGO.dikey = bul(["Logo_Dikey"]);                                        // 2: tek parça dikey
-  LOGO.pano = bul(["Logo_Amblem", "Logo_Yazi", "Logo_Amblem_Arka", "Logo_Yazi_Arka", "Logo_Yatay_Pano"]); // 3: çift yüzlü pano
+  // dikey ve dikey v2 aynı alınlığı (3,00-3,50) paylaşır; yatay kendi alınlığında (3,35-3,89)
+  LOGO.dikey = bul(["Web_D1_Logo", "Web_D1_Pleksi", "Web_Alinlik_Dikey"]);
+  LOGO.dikey2 = bul(["Logo_Maarif_Dikey", "Logo_Yazi_Alinlik", "Logo_Arka_Seffaf_Pleksi", "Logo_Pleksi_Konsol_1_Dikey",
+    "Logo_Pleksi_Konsol_1_Yatay", "Logo_Pleksi_Konsol_2_Dikey", "Logo_Pleksi_Konsol_2_Yatay", "Web_Alinlik_Dikey"]);
+  LOGO.yatay = bul(["Logo_Yatay_Amblem_Alinlik", "Logo_Yatay_Yazi_Alinlik", "Alinlik_Beyaz"]);
   logoSec(hashLogo());
   document.getElementById("logo-sec").hidden = false;
   durum.hidden = true;
@@ -311,20 +314,22 @@ new GLTFLoader().setDRACOLoader(draco).load("stand.json?v=7", (gltf) => {  // ?v
   console.error(err);
 });
 
-// ---------- logo seçeneği: 1 yatay / 2 dikey (tek parça, arkadan ters) / 3 pano (çift yüzlü, iki yönden okunur) ----------
-const SIRA = ["yatay", "dikey", "pano"];
-const LOGO = { yatay: [], dikey: [], pano: [], secili: "yatay" };
+// ---------- logo seçeneği: 1 dikey (pleksi) / 2 dikey v2 (yazı alınlıkta) / 3 yatay (alınlıkta) ----------
+const SIRA = ["dikey", "dikey2", "yatay"];
+const LOGO = { dikey: [], dikey2: [], yatay: [], secili: "dikey" };
 const logoKutu = document.getElementById("logo-sec");
-const hashLogo = () => (SIRA.includes(location.hash.slice(1)) ? location.hash.slice(1) : "yatay");
+const hashLogo = () => (SIRA.includes(location.hash.slice(1)) ? location.hash.slice(1) : SIRA[0]);
 
 function logoGorunurluk() {
-  for (const ad of SIRA) for (const o of LOGO[ad]) o.visible = ad === LOGO.secili;
+  // önce hepsini gizle, sonra seçileni aç: paylaşılan alınlık iki seçenekte de var
+  for (const ad of SIRA) for (const o of LOGO[ad]) o.visible = false;
+  for (const o of LOGO[LOGO.secili]) o.visible = true;
 }
 function logoSec(ad) {
   LOGO.secili = ad;
   logoGorunurluk();
   for (const b of logoKutu.querySelectorAll("button")) b.setAttribute("aria-pressed", b.dataset.logo === ad);
-  try { history.replaceState(null, "", ad === "yatay" ? location.pathname + location.search : "#" + ad); } catch {}
+  try { history.replaceState(null, "", ad === SIRA[0] ? location.pathname + location.search : "#" + ad); } catch {}
 }
 for (const b of logoKutu.querySelectorAll("button")) b.onclick = () => logoSec(b.dataset.logo);
 addEventListener("hashchange", () => logoSec(hashLogo()));
@@ -332,7 +337,12 @@ addEventListener("hashchange", () => logoSec(hashLogo()));
 // ---------- dokun / tıkla: nesnenin adı ve tahmini ölçüsü ----------
 // glTF yükleyici adlardaki noktayı siler: "Duvar_Sinif_Sag.001" -> "Duvar_Sinif_Sag001"
 const AD = [
-  [/^(Logo_Yatay_Pano|Logo_(Amblem|Yazi)(_Arka)?|Logo1_|Logo_Dikey)/, "logo"],
+  [/^(Web_D1_Logo|Logo_Maarif_Dikey|Logo_Yazi_Alinlik|Logo_Yatay_(Amblem|Yazi)_Alinlik)/, "logo"],
+  [/^(Web_D1_Pleksi|Logo_Arka_Seffaf_Pleksi)/, "Şeffaf pleksi"], [/^Logo_Pleksi_Konsol/, "Çelik konsol"],
+  [/^(Alinlik_Beyaz|Web_Alinlik_Dikey)/, "Beyaz alınlık"], [/^Baffle_\d/, "Baffle tavan çıtası"], [/^Spot_Baffle/, "Gömme spot"],
+  [/^Podyum_Rampa/, "Giriş rampası"], [/^Podyum_Profil/, "Alüminyum kenar profili"], [/^Podyum_10cm/, "Podyum (10 cm)"],
+  [/^Banko_(Lightbox|Logo)/, "Karşılama bankosu"], [/^Mutfak_Ust_Dolap/, "Mutfak üst dolabı"], [/^Mutfak_PVC/, "Mutfak PVC zemini"],
+  [/^Ray_Karsilama/, "Ray spot"],
   [/^VIP_Duvar_Logo/, "VIP duvar logosu"],
   [/^Zemin$/, "Zemin"],
   [/^Duvar_Sinif_Sag001/, "Ön kiriş (logo taşıyıcı)"],
@@ -349,7 +359,7 @@ const AD = [
   [/^Cizim_Pencere/, "Pencere çizimi"], [/^Cizim_Petek/, "Kalorifer çizimi"], [/^Cizim_Harita/, "Dünya haritası çizimi"], [/^Cizim_Kitaplik/, "Kitaplık çizimi"],
   [/^(Spot_|Ray_Spot)/, "Spot ışık"],
 ];
-const LOGO_ETIKET = { yatay: "Logo · 1 Yatay", dikey: "Logo · 2 Dikey", pano: "Logo · 3 Pano" };
+const LOGO_ETIKET = { dikey: "Logo · 1 Dikey", dikey2: "Logo · 2 Dikey v2", yatay: "Logo · 3 Yatay" };
 function hedefBul(o) {
   // çok malzemeli nesnede tıklanan parça, nesnenin adını taşıyan grubun çocuğudur (adı "Cube006" gibi): gruptan başla
   if (o.parent && o.parent.type === "Group" && AD.some(([re]) => re.test(o.parent.name))) o = o.parent;
