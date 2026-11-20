@@ -279,7 +279,7 @@ addEventListener("resize", boyut); boyut();
 const durum = document.getElementById("durum"), dYazi = document.getElementById("durum-yazi"), dBar = document.getElementById("durum-bar");
 // çözücü sayfanın yanında (CDN'den indirme engelli)
 const draco = new DRACOLoader().setDecoderPath("draco/").setDecoderConfig({ type: "wasm" });
-new GLTFLoader().setDRACOLoader(draco).load("stand.json?v=10", (gltf) => {  // ?v: güncellemede tarayıcı önbelleği eski modeli göstermesin
+new GLTFLoader().setDRACOLoader(draco).load("stand.json?v=11", (gltf) => {  // ?v: güncellemede tarayıcı önbelleği eski modeli göstermesin
   gltf.scene.traverse((o) => {
     if (!o.isMesh) return;
     o.castShadow = true; o.receiveShadow = true;
