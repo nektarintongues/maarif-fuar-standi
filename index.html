@@ -133,9 +133,7 @@ button[aria-pressed="true"] { background: var(--turkuaz-koyu); border-color: var
 
 <div id="logo-sec" class="kart" role="group" aria-label="Logo seçeneği" hidden>
   <span>Logo</span>
-  <button data-logo="dikey" aria-pressed="true">1 · Dikey</button>
-  <button data-logo="dikey2" aria-pressed="false">2 · Dikey v2</button>
-  <button data-logo="yatay" aria-pressed="false">3 · Yatay</button>
+  <button data-logo="v1" aria-pressed="true">Versiyon 1</button>
 </div>
 
 <div id="durum"><div class="kart"><div id="durum-yazi">Stand yükleniyor…</div><div class="bar"><b id="durum-bar"></b></div></div></div>
@@ -279,7 +277,7 @@ addEventListener("resize", boyut); boyut();
 const durum = document.getElementById("durum"), dYazi = document.getElementById("durum-yazi"), dBar = document.getElementById("durum-bar");
 // çözücü sayfanın yanında (CDN'den indirme engelli)
 const draco = new DRACOLoader().setDecoderPath("draco/").setDecoderConfig({ type: "wasm" });
-new GLTFLoader().setDRACOLoader(draco).load("stand.json?v=11", (gltf) => {  // ?v: güncellemede tarayıcı önbelleği eski modeli göstermesin
+new GLTFLoader().setDRACOLoader(draco).load("stand.json?v=12", (gltf) => {  // ?v: güncellemede tarayıcı önbelleği eski modeli göstermesin
   gltf.scene.traverse((o) => {
     if (!o.isMesh) return;
     o.castShadow = true; o.receiveShadow = true;
@@ -297,11 +295,7 @@ new GLTFLoader().setDRACOLoader(draco).load("stand.json?v=11", (gltf) => {  // ?
   });
   scene.add(gltf.scene);
   const bul = (adlar) => adlar.map((n) => gltf.scene.getObjectByName(n)).filter(Boolean);
-  // dikey ve dikey v2 aynı alınlığı (3,00-3,50) paylaşır; yatay kendi alınlığında (3,35-3,89)
-  LOGO.dikey = bul(["Web_D1_Logo", "Web_D1_Pleksi", "Web_Alinlik_Dikey"]);
-  LOGO.dikey2 = bul(["Logo_Maarif_Dikey", "Logo_Yazi_Alinlik", "Logo_Arka_Seffaf_Pleksi", "Logo_Pleksi_Konsol_1_Dikey",
-    "Logo_Pleksi_Konsol_1_Yatay", "Logo_Pleksi_Konsol_2_Dikey", "Logo_Pleksi_Konsol_2_Yatay", "Web_Alinlik_Dikey"]);
-  LOGO.yatay = bul(["Logo_Yatay_Amblem_Alinlik", "Logo_Yatay_Yazi_Alinlik", "Alinlik_Beyaz"]);
+  LOGO.v1 = bul(["Logo_UMO_Yatay", "Alinlik_Beyaz"]);  // Versiyon 1: alınlıkta Uluslararası Maarif Okulları logosu
   logoSec(hashLogo());
   document.getElementById("logo-sec").hidden = false;
   durum.hidden = true;
@@ -315,8 +309,8 @@ new GLTFLoader().setDRACOLoader(draco).load("stand.json?v=11", (gltf) => {  // ?
 });
 
 // ---------- logo seçeneği: 1 dikey (pleksi) / 2 dikey v2 (yazı alınlıkta) / 3 yatay (alınlıkta) ----------
-const SIRA = ["dikey", "dikey2", "yatay"];
-const LOGO = { dikey: [], dikey2: [], yatay: [], secili: "dikey" };
+const SIRA = ["v1"];  // yeni versiyon: buraya ad, HTML'e düğme, LOGO_ETIKET'e etiket ekle
+const LOGO = { v1: [], secili: "v1" };
 const logoKutu = document.getElementById("logo-sec");
 const hashLogo = () => (SIRA.includes(location.hash.slice(1)) ? location.hash.slice(1) : SIRA[0]);
 
@@ -337,7 +331,7 @@ addEventListener("hashchange", () => logoSec(hashLogo()));
 // ---------- dokun / tıkla: nesnenin adı ve tahmini ölçüsü ----------
 // glTF yükleyici adlardaki noktayı siler: "Duvar_Sinif_Sag.001" -> "Duvar_Sinif_Sag001"
 const AD = [
-  [/^(Web_D1_Logo|Logo_Maarif_Dikey|Logo_Yazi_Alinlik|Logo_Yatay_(Amblem|Yazi)_Alinlik)/, "logo"],
+  [/^Logo_UMO/, "logo"],
   [/^(Web_D1_Pleksi|Logo_Arka_Seffaf_Pleksi)/, "Şeffaf pleksi"], [/^Logo_Pleksi_Konsol/, "Çelik konsol"],
   [/^(Alinlik_Beyaz|Web_Alinlik_Dikey)/, "Beyaz alınlık"], [/^Baffle_\d/, "Baffle tavan çıtası"], [/^Spot_Baffle/, "Gömme spot"],
   [/^Podyum_Rampa/, "Giriş rampası"], [/^Podyum_Profil/, "Alüminyum kenar profili"], [/^Podyum_10cm/, "Podyum (10 cm)"],
@@ -359,7 +353,7 @@ const AD = [
   [/^Cizim_Pencere/, "Pencere çizimi"], [/^Cizim_Petek/, "Kalorifer çizimi"], [/^Cizim_Harita/, "Dünya haritası çizimi"], [/^Cizim_Kitaplik/, "Kitaplık çizimi"],
   [/^(Spot_|Ray_Spot)/, "Spot ışık"],
 ];
-const LOGO_ETIKET = { dikey: "Logo · 1 Dikey", dikey2: "Logo · 2 Dikey v2", yatay: "Logo · 3 Yatay" };
+const LOGO_ETIKET = { v1: "Logo · Versiyon 1" };
 function hedefBul(o) {
   // çok malzemeli nesnede tıklanan parça, nesnenin adını taşıyan grubun çocuğudur (adı "Cube006" gibi): gruptan başla
   if (o.parent && o.parent.type === "Group" && AD.some(([re]) => re.test(o.parent.name))) o = o.parent;
