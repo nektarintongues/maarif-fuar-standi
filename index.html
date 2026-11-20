@@ -134,6 +134,7 @@ button[aria-pressed="true"] { background: var(--turkuaz-koyu); border-color: var
 <div id="logo-sec" class="kart" role="group" aria-label="Logo seçeneği" hidden>
   <span>Logo</span>
   <button data-logo="v1" aria-pressed="true">Versiyon 1</button>
+  <button data-logo="v2" aria-pressed="false">Versiyon 2</button>
 </div>
 
 <div id="durum"><div class="kart"><div id="durum-yazi">Stand yükleniyor…</div><div class="bar"><b id="durum-bar"></b></div></div></div>
@@ -277,7 +278,7 @@ addEventListener("resize", boyut); boyut();
 const durum = document.getElementById("durum"), dYazi = document.getElementById("durum-yazi"), dBar = document.getElementById("durum-bar");
 // çözücü sayfanın yanında (CDN'den indirme engelli)
 const draco = new DRACOLoader().setDecoderPath("draco/").setDecoderConfig({ type: "wasm" });
-new GLTFLoader().setDRACOLoader(draco).load("stand.json?v=12", (gltf) => {  // ?v: güncellemede tarayıcı önbelleği eski modeli göstermesin
+new GLTFLoader().setDRACOLoader(draco).load("stand.json?v=13", (gltf) => {  // ?v: güncellemede tarayıcı önbelleği eski modeli göstermesin
   gltf.scene.traverse((o) => {
     if (!o.isMesh) return;
     o.castShadow = true; o.receiveShadow = true;
@@ -295,7 +296,8 @@ new GLTFLoader().setDRACOLoader(draco).load("stand.json?v=12", (gltf) => {  // ?
   });
   scene.add(gltf.scene);
   const bul = (adlar) => adlar.map((n) => gltf.scene.getObjectByName(n)).filter(Boolean);
-  LOGO.v1 = bul(["Logo_UMO_Yatay", "Alinlik_Beyaz"]);  // Versiyon 1: alınlıkta Uluslararası Maarif Okulları logosu
+  LOGO.v1 = bul(["Web_V1_Logo", "Web_V1_Alinlik"]);  // Versiyon 1: alınlıkta logo
+  LOGO.v2 = bul(["Logo_UMO_Yatay", "Logo_UMO_Yatay_Arka", "Logo_Orta_Panel", "Alinlik_Beyaz"]);  // Versiyon 2: orta panel, önde ve arkada logo
   logoSec(hashLogo());
   document.getElementById("logo-sec").hidden = false;
   durum.hidden = true;
@@ -309,8 +311,8 @@ new GLTFLoader().setDRACOLoader(draco).load("stand.json?v=12", (gltf) => {  // ?
 });
 
 // ---------- logo seçeneği: 1 dikey (pleksi) / 2 dikey v2 (yazı alınlıkta) / 3 yatay (alınlıkta) ----------
-const SIRA = ["v1"];  // yeni versiyon: buraya ad, HTML'e düğme, LOGO_ETIKET'e etiket ekle
-const LOGO = { v1: [], secili: "v1" };
+const SIRA = ["v1", "v2"];  // yeni versiyon: buraya ad, HTML'e düğme, LOGO_ETIKET'e etiket ekle
+const LOGO = { v1: [], v2: [], secili: "v1" };
 const logoKutu = document.getElementById("logo-sec");
 const hashLogo = () => (SIRA.includes(location.hash.slice(1)) ? location.hash.slice(1) : SIRA[0]);
 
@@ -331,7 +333,7 @@ addEventListener("hashchange", () => logoSec(hashLogo()));
 // ---------- dokun / tıkla: nesnenin adı ve tahmini ölçüsü ----------
 // glTF yükleyici adlardaki noktayı siler: "Duvar_Sinif_Sag.001" -> "Duvar_Sinif_Sag001"
 const AD = [
-  [/^Logo_UMO/, "logo"],
+  [/^(Logo_UMO|Web_V1_Logo)/, "logo"], [/^Logo_Orta_Panel/, "Logo paneli"], [/^Web_V1_Alinlik/, "Beyaz alınlık"],
   [/^(Web_D1_Pleksi|Logo_Arka_Seffaf_Pleksi)/, "Şeffaf pleksi"], [/^Logo_Pleksi_Konsol/, "Çelik konsol"],
   [/^(Alinlik_Beyaz|Web_Alinlik_Dikey)/, "Beyaz alınlık"], [/^Baffle_\d/, "Baffle tavan çıtası"], [/^Spot_Baffle/, "Gömme spot"],
   [/^Podyum_Rampa/, "Giriş rampası"], [/^Podyum_Profil/, "Alüminyum kenar profili"], [/^Podyum_10cm/, "Podyum (10 cm)"],
@@ -353,7 +355,7 @@ const AD = [
   [/^Cizim_Pencere/, "Pencere çizimi"], [/^Cizim_Petek/, "Kalorifer çizimi"], [/^Cizim_Harita/, "Dünya haritası çizimi"], [/^Cizim_Kitaplik/, "Kitaplık çizimi"],
   [/^(Spot_|Ray_Spot)/, "Spot ışık"],
 ];
-const LOGO_ETIKET = { v1: "Logo · Versiyon 1" };
+const LOGO_ETIKET = { v1: "Logo · Versiyon 1", v2: "Logo · Versiyon 2" };
 function hedefBul(o) {
   // çok malzemeli nesnede tıklanan parça, nesnenin adını taşıyan grubun çocuğudur (adı "Cube006" gibi): gruptan başla
   if (o.parent && o.parent.type === "Group" && AD.some(([re]) => re.test(o.parent.name))) o = o.parent;
