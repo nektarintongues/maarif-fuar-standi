@@ -126,6 +126,9 @@ button[aria-pressed="true"] { background: var(--turkuaz-koyu); border-color: var
     <button data-nokta="karsilama">Karşılama</button>
     <button data-nokta="logo">Logo</button>
     <button data-nokta="arka">Arka</button>
+    <span class="ayrac" aria-hidden="true"></span>
+    <button data-kapi="0" aria-pressed="true">Kapısız</button>
+    <button data-kapi="1" aria-pressed="false">Kapılı</button>
   </div>
 </div>
 
@@ -225,6 +228,12 @@ function modSec(yeni) {
 document.getElementById("mod-bak").onclick = () => modSec("bak");
 document.getElementById("mod-gez").onclick = () => modSec("gez");
 for (const b of document.querySelectorAll("[data-nokta]")) b.onclick = () => git(b.dataset.nokta);
+let KAPI = [];
+function kapiSec(acik) {
+  for (const o of KAPI) o.visible = acik;
+  for (const b of document.querySelectorAll("[data-kapi]")) b.setAttribute("aria-pressed", (b.dataset.kapi === "1") === acik);
+}
+for (const b of document.querySelectorAll("[data-kapi]")) b.onclick = () => kapiSec(b.dataset.kapi === "1");
 
 let surukle = null;
 canvas.addEventListener("pointerdown", (e) => { if (mod !== "gez") return; surukle = { id: e.pointerId, x: e.clientX, y: e.clientY }; canvas.setPointerCapture(e.pointerId); });
@@ -278,7 +287,7 @@ addEventListener("resize", boyut); boyut();
 const durum = document.getElementById("durum"), dYazi = document.getElementById("durum-yazi"), dBar = document.getElementById("durum-bar");
 // çözücü sayfanın yanında (CDN'den indirme engelli)
 const draco = new DRACOLoader().setDecoderPath("draco/").setDecoderConfig({ type: "wasm" });
-new GLTFLoader().setDRACOLoader(draco).load("stand.json?v=17", (gltf) => {  // ?v: güncellemede tarayıcı önbelleği eski modeli göstermesin
+new GLTFLoader().setDRACOLoader(draco).load("stand.json?v=18", (gltf) => {  // ?v: güncellemede tarayıcı önbelleği eski modeli göstermesin
   gltf.scene.traverse((o) => {
     if (!o.isMesh) return;
     o.castShadow = true; o.receiveShadow = true;
@@ -299,6 +308,8 @@ new GLTFLoader().setDRACOLoader(draco).load("stand.json?v=17", (gltf) => {  // ?
   LOGO.v1 = bul(["Web_V1_Logo", "Web_V1_Alinlik"]);  // Versiyon 1: alınlıkta logo
   LOGO.v2 = bul(["Logo_UMO_Yatay", "Logo_UMO_Yatay_Arka", "Logo_Orta_Panel", "Alinlik_Beyaz"]);  // Versiyon 2: orta panel, önde ve arkada logo
   logoSec(hashLogo());
+  KAPI = bul(["Kapi_VIP_Tarafi", "Kapi_Karsilama_Tarafi"]);  // mutfak koridoru kapıları (kulp ve menteşeler çocuk nesne)
+  kapiSec(false);
   document.getElementById("logo-sec").hidden = false;
   durum.hidden = true;
   git("genel");
@@ -339,7 +350,8 @@ const AD = [
   [/^Podyum_Rampa/, "Giriş rampası"], [/^Podyum_Profil/, "Alüminyum kenar profili"], [/^Podyum_10cm/, "Podyum (10 cm)"],
   [/^Banko_(Lightbox|Logo)/, "Karşılama bankosu"], [/^Mutfak_Ust_Dolap/, "Mutfak üst dolabı"], [/^Mutfak_PVC/, "Mutfak PVC zemini"],
   [/^Ray_Karsilama/, "Ray spot"],
-  [/^VIP_Duvar_Logo/, "VIP duvar logosu"],
+  [/^VIP_Duvar_Logo/, "VIP duvar logosu"], [/^Kapi_(VIP|Karsilama)_Tarafi/, "Mutfak kapısı"],
+  [/^Karsilama_Duvar_Logo/, "Karşılama duvar logosu"], [/^Baski_Infografik/, "İnfografik baskı"], [/^Baski_Cocuklar/, "Çocuk görseli baskı"],
   [/^Zemin$/, "Zemin"],
   [/^Duvar_Sinif_Sag001/, "Ön kiriş (logo taşıyıcı)"],
   [/^Duvar_Arka_VIP/, "Arka duvar · VIP"], [/^Duvar_Arka_Mutfak/, "Arka duvar · Mutfak"], [/^Duvar_Arka_Karsilama/, "Arka duvar · Karşılama"],
